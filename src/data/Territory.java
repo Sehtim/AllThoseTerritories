@@ -15,10 +15,10 @@ public class Territory {
     private int armyCount = 0;
 
 
-    public Territory(String name, Point cap, List<Polygon> parts) {
+    public Territory(String name) {
         this.name = name;
-        this.capital = cap;
-        this.parts = parts;
+        this.parts = new ArrayList<Polygon>();
+        this.neighbors = new HashSet<Territory>();
     }
 
     public boolean isNeighbor(Territory t) {
@@ -27,6 +27,8 @@ public class Territory {
 
     public void addNeighbor(Territory t) {
         neighbors.add(t);
+        // Auch anders herum hinzufügen
+        t.neighbors.add(this);
     }
 
     public String getName() {
@@ -35,6 +37,10 @@ public class Territory {
 
     public Point getCapitalPosition() {
         return capital;
+    }
+
+    public void setCapitalPosition(Point capital) {
+        this.capital = capital;
     }
 
     public void setPlayer(int playerID) {
@@ -55,6 +61,10 @@ public class Territory {
 
     public List<Polygon> getParts() {
         return parts;
+    }
+
+    public void addPart(Polygon polygon) {
+        parts.add(polygon);
     }
 
     public boolean contains(Point p) {
