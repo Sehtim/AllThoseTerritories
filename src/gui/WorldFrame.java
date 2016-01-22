@@ -34,6 +34,9 @@ public class WorldFrame extends JFrame {
     private Font drawFont;
 
     private boolean claimPhase;
+    private boolean reinforcePhase;
+
+    private final JButton nextTurnBtn;
 
     public WorldFrame(List<Player> players, List<Territory> territories, List<Continent> continents) {
         this.continents = continents;
@@ -57,6 +60,7 @@ public class WorldFrame extends JFrame {
             }
         };
         gameBoard.setSize(WIDTH, HEIGHT);
+        //gameBoard.createBufferStrategy(2);
         gameBoard.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
@@ -70,24 +74,40 @@ public class WorldFrame extends JFrame {
                         // TODO Aktionen
 
 
-
-                        if (players.get(activePlayer).isAI())
-                        {
+                        if (players.get(activePlayer).isAI()) {
                             // Evtl Meldung "AI ist an der Reihe" oder Informationen anzeigen
                             break;
                         }
 
-                        claimTerritory(players.get(activePlayer), territory);
+                        if (claimPhase) {
+                            claimTerritory(territory);
+                            gameBoard.repaint();
+                        } else {
+                            if (reinforcePhase) {
+                                reinforceTerritory(territory, 1);
+                                gameBoard.repaint();
+                            } else {
+                                if (e.getButton() == MouseEvent.BUTTON1) {
+                                    selectedTerritory = territory;
+                                } else if (e.getButton() == MouseEvent.BUTTON2) {
+                                    attackedTerritory = territory;
+                                }
+
+                                gameBoard.repaint();
+                            }
+                        }
 
                         break;
                     }
+
                 }
             }
         });
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBorder(new MatteBorder(1, 0, 0, 0, Color.BLACK));
-        JButton nextTurnBtn = new JButton("Zug beenden");
+        nextTurnBtn = new JButton("Zug beenden");
+        nextTurnBtn.setEnabled(!claimPhase);
         buttonPanel.add(nextTurnBtn);
 
         Container contentPane = getContentPane();
@@ -103,33 +123,26 @@ public class WorldFrame extends JFrame {
 
         // Verbindungen zeichnen
         g.setColor(Color.BLACK);
-        for (int i = 0; i < territories.size(); i++)
-        {
+        for (int i = 0; i < territories.size(); i++) {
             Territory t1 = territories.get(i);
-            for (int j = i+1; j < territories.size(); j++)
-            {
+            for (int j = i + 1; j < territories.size(); j++) {
                 Territory t2 = territories.get(j);
                 if (t1.isNeighbor(t2)) {
                     int x1 = t1.getCapitalPosition().x;
                     int x2 = t2.getCapitalPosition().x;
 
-                    if (Math.abs(x1 - x2) > WIDTH / 2)
-                    {
+                    if (Math.abs(x1 - x2) > WIDTH / 2) {
                         int y = (t1.getCapitalPosition().y + t2.getCapitalPosition().y) / 2;
-                        if (x1 < x2)
-                        {
+                        if (x1 < x2) {
                             g.drawLine(0, y, x1, t1.getCapitalPosition().y);
                             g.drawLine(x2, t2.getCapitalPosition().y, WIDTH, y);
-                        }
-                        else
-                        {
+                        } else {
                             g.drawLine(0, y, x2, t2.getCapitalPosition().y);
                             g.drawLine(x1, t1.getCapitalPosition().y, WIDTH, y);
                         }
-                    }
-                    else {
+                    } else {
                         g.drawLine(t1.getCapitalPosition().x, t1.getCapitalPosition().y,
-                                   t2.getCapitalPosition().x, t2.getCapitalPosition().y);
+                                t2.getCapitalPosition().x, t2.getCapitalPosition().y);
                     }
                 }
             }
@@ -151,13 +164,20 @@ public class WorldFrame extends JFrame {
             }
         }
 
+        // Ausgewähltes Territorium
+        if (selectedTerritory != null) {
+            g.setColor(Color.YELLOW);
+            for (Polygon polygon : selectedTerritory.getParts()) {
+                g.drawPolygon(polygon);
+            }
+        }
+
         // Informationen (Name, Anzahl Armeen)
         g.setColor(Color.BLACK);
         g.setFont(drawFont);
         FontMetrics metrics = g.getFontMetrics(drawFont);
 
-        for (Territory territory : territories)
-        {
+        for (Territory territory : territories) {
             Point cap = territory.getCapitalPosition();
 
             String toDraw;
@@ -173,28 +193,75 @@ public class WorldFrame extends JFrame {
         }
     }
 
-    private void claimTerritory(Player p, Territory territory)
-    {
-        if (claimPhase && players.get(activePlayer).equals(p))
-        {
+    public boolean claimTerritory(Territory territory) {
+        if (claimPhase) {
             if (territory.getPlayer() == -1) {
                 territory.setPlayer(activePlayer);
                 territory.setArmyCount(1);
-            }
-            else
-            {
+
+                if (territories.stream().allMatch(t -> t.getPlayer() >= 0)) {
+                    claimPhase = false;
+                    reinforcePhase = false;
+                    activePlayer = players.size() - 1;
+                    // selber status wie am Ende einer Angriffs-Phase
+                }
+
+                nextTurn();
+
+                return true;
+            } else {
                 // Evtl Meldung anzeigen: schon belegt
+                return false;
             }
 
-            claimPhase = territories.stream().allMatch(t -> t.getPlayer() > 0);
-            if (++activePlayer == players.size())
-                activePlayer = 0;
-        }
-        else
-        {
+
+        } else {
             System.out.println("Achtung: claimTerritory falsch aufgerufen!");
+            return false;
         }
     }
 
+    public boolean reinforceTerritory(Territory territory, int count) {
+        if (!claimPhase && reinforcePhase && territory.getPlayer() == activePlayer) {
+            if (count > 0 && count <= activeReinforcements) {
+                activeReinforcements -= count;
+                territory.setArmyCount(territory.getArmyCount() + count);
+                if (activeReinforcements == 0)
+                    nextTurn();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void nextTurn() {
+        if (++activePlayer == players.size()) {
+            activePlayer = 0;
+
+            reinforcePhase = !reinforcePhase;
+            nextTurnBtn.setEnabled(!reinforcePhase && !claimPhase);
+        }
+
+        if (reinforcePhase) {
+            activeReinforcements = 0;
+            for (Territory t : territories) {
+                if (t.getPlayer() == activePlayer)
+                    activeReinforcements++;
+            }
+
+            activeReinforcements /= 3;
+            if (activeReinforcements < 3) // entspricht nicht den Vorschreibungen, aber den normalen Risiko-Regeln - abklären!
+                activeReinforcements = 3;
+
+            for (Continent c : continents) {
+                if (c.getTerritories().stream().allMatch(t -> t.getPlayer() == activePlayer))
+                    activeReinforcements += c.getReinforcements();
+            }
+        } else {
+
+        }
+
+    }
 
 }
