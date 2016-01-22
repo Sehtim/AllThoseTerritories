@@ -48,6 +48,7 @@ public class EasyAI implements AI {
             placeCount = ThreadLocalRandom.current().nextInt(1, reinforcements + 1);
             reinforcements -= placeCount;
             world.placeReinforcements(ownedTerritories.get(ThreadLocalRandom.current().nextInt(ownedTerritories.size())), placeCount);
+            delay();
         }
         while (reinforcements > 0);
     }
@@ -89,6 +90,7 @@ public class EasyAI implements AI {
                 if (to.getPlayer() != computerID) {
                     attacked = true;
                     world.attackTerritory(from, to);
+                    delay();
                     break;
                 }
             }
@@ -97,5 +99,14 @@ public class EasyAI implements AI {
                 attackerTerritories.remove(0);
             }
         } while (!attackerTerritories.isEmpty());
+    }
+
+    private void delay() {
+        try {
+            Thread.sleep(world.getGamespeed());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
     }
 }
