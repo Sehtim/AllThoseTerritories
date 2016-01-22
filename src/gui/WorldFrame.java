@@ -77,19 +77,7 @@ public class WorldFrame extends JFrame {
                             break;
                         }
 
-                        if (claimPhase)
-                        {
-                            if (territory.getPlayer() == -1) {
-                                territory.setPlayer(activePlayer);
-                                territory.setArmyCount(1);
-                            }
-                            else
-                            {
-                                // Evtl Meldung anzeigen: schon belegt
-                            }
-
-                            claimPhase = territories.stream().allMatch(t -> t.getPlayer() > 0);
-                        }
+                        claimTerritory(players.get(activePlayer), territory);
 
                         break;
                     }
@@ -184,4 +172,29 @@ public class WorldFrame extends JFrame {
 
         }
     }
+
+    private void claimTerritory(Player p, Territory territory)
+    {
+        if (claimPhase && players.get(activePlayer).equals(p))
+        {
+            if (territory.getPlayer() == -1) {
+                territory.setPlayer(activePlayer);
+                territory.setArmyCount(1);
+            }
+            else
+            {
+                // Evtl Meldung anzeigen: schon belegt
+            }
+
+            claimPhase = territories.stream().allMatch(t -> t.getPlayer() > 0);
+            if (++activePlayer == players.size())
+                activePlayer = 0;
+        }
+        else
+        {
+            System.out.println("Achtung: claimTerritory falsch aufgerufen!");
+        }
+    }
+
+
 }
