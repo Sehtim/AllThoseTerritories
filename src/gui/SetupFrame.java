@@ -1,6 +1,7 @@
 package gui;
 
 import data.Continent;
+import data.PlayerType;
 import data.Territory;
 
 import javax.swing.*;
@@ -138,7 +139,7 @@ public class SetupFrame extends JFrame {
                             break;
                         }
                     }
-                    if(index_reinforcements == continent.length()) {
+                    if (index_reinforcements == continent.length()) {
                         throw new IOException(errorMessage);
                     }
                     int reinforcments;
@@ -244,8 +245,8 @@ public class SetupFrame extends JFrame {
         // ############
         // Center
         LinkedPlayerPanel playerSettingsPanel = new LinkedPlayerPanel();
-        playerSettingsPanel.addPlayer("Spieler1", false, Color.BLUE);
-        playerSettingsPanel.addPlayer("Computer", true, Color.RED);
+        playerSettingsPanel.addPlayer("Spieler1", PlayerType.SPIELER, Color.BLUE);
+        playerSettingsPanel.addPlayer("Computer", PlayerType.NORMAL, Color.RED);
         JScrollPane playerScrollPane = new JScrollPane(playerSettingsPanel);
         playerScrollPane.getVerticalScrollBar().setUnitIncrement(10);
         playerScrollPane.setBorder(new TitledBorder("Teilnehmer"));

@@ -1,7 +1,9 @@
 package ai;
 
 public interface AI {
-    void claimTurn();
-    void reinforceTurn();
-    void attackTurn();
+    void claimTurn(int computerID);
+
+    void reinforceTurn(int computerID, int reinforcements);
+
+    void movementTurn(int computerID);
 }

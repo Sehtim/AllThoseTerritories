@@ -31,6 +31,10 @@ public class Territory {
         t.neighbors.add(this);
     }
 
+    public Set<Territory> getNeighbors() {
+        return neighbors;
+    }
+
     public String getName() {
         return this.name;
     }
