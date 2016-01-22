@@ -1,6 +1,7 @@
 package gui;
 
 import data.Player;
+import data.PlayerType;
 
 import javax.swing.*;
 import java.awt.*;
@@ -13,12 +14,12 @@ public class LinkedPlayerPanel extends JPanel {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
     }
 
-    public void addPlayer(String name, boolean computer, Color color) {
-        addPlayer(name, computer, color, -1);
+    public void addPlayer(String name, PlayerType playerType, Color color) {
+        addPlayer(name, playerType, color, -1);
     }
 
-    private void addPlayer(String name, boolean computer, Color color, int index) {
-        JPanel newPanel = new PlayerPanel(name, computer, color);
+    private void addPlayer(String name, PlayerType playerType, Color color, int index) {
+        JPanel newPanel = new PlayerPanel(name, playerType, color);
         newPanel.setMaximumSize(newPanel.getPreferredSize()); // Damit das Boxlayout die Panels nicht gleichmäßig verteilt
 
         add(newPanel, index);
@@ -41,14 +42,14 @@ public class LinkedPlayerPanel extends JPanel {
 
     private class PlayerPanel extends JPanel {
 
-        private JCheckBox aiCheckbox;
+        private JComboBox<PlayerType> playerTypeBox;
         private JTextField playerNameTF;
         private JButton colorButton;
 
-        public PlayerPanel(String name, boolean computer, Color color) {
+        public PlayerPanel(String name, PlayerType playerType, Color color) {
             playerNameTF = new JTextField(name, 15);
-            aiCheckbox = new JCheckBox((Icon) null, computer);
-            aiCheckbox.setToolTipText("Angehakt = Computer");
+            playerTypeBox = new JComboBox<PlayerType>(PlayerType.values());
+            playerTypeBox.setSelectedItem(playerType);
             colorButton = new JButton();
             colorButton.setBackground(color);
             colorButton.addActionListener(e -> {
@@ -80,10 +81,10 @@ public class LinkedPlayerPanel extends JPanel {
                 }
                 // Wenn letztes Panel: -1 übergeben, damit am Ende angefügt wird.
                 // Sonst am nächsten index einfügen
-                addPlayer("Neuer Spieler", false, getRandomColor(), ++i == components.length ? -1 : i);
+                addPlayer("Neuer Spieler", PlayerType.SPIELER, getRandomColor(), ++i == components.length ? -1 : i);
             });
 
-            add(aiCheckbox);
+            add(playerTypeBox);
             add(playerNameTF);
             add(colorButton);
             add(removeButton);
@@ -91,7 +92,7 @@ public class LinkedPlayerPanel extends JPanel {
         }
 
         public Player getPlayerObject() {
-            return new Player(playerNameTF.getText(), aiCheckbox.isSelected(), colorButton.getBackground());
+            return new Player(playerNameTF.getText(), (PlayerType) playerTypeBox.getSelectedItem(), colorButton.getBackground());
         }
     }
 }

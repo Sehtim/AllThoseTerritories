@@ -4,17 +4,21 @@ import java.awt.*;
 
 public class Player {
     private String name;
-    private boolean ai;
+    private PlayerType playerType;
     private Color color;
 
-    public Player(String name, boolean ai, Color color) {
+    public Player(String name, PlayerType playerType, Color color) {
         this.name = name;
-        this.ai = ai;
+        this.playerType = playerType;
         this.color = color;
     }
 
     public boolean isAI() {
-        return ai;
+        return playerType != PlayerType.SPIELER;
+    }
+
+    public PlayerType getPlayerType() {
+        return playerType;
     }
 
     public String getName() {
