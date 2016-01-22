@@ -17,8 +17,8 @@ public class Territory {
 
     public Territory(String name) {
         this.name = name;
-        this.parts = new ArrayList<Polygon>();
-        this.neighbors = new HashSet<Territory>();
+        this.parts = new ArrayList<>();
+        this.neighbors = new HashSet<>();
     }
 
     public boolean isNeighbor(Territory t) {
@@ -61,6 +61,14 @@ public class Territory {
 
     public int getArmyCount() {
         return this.armyCount;
+    }
+
+    public void increaseArmyCount(int count) {
+        this.armyCount += count;
+    }
+
+    public void decreaseArmyCount(int count) {
+        this.armyCount -= count;
     }
 
     public List<Polygon> getParts() {

@@ -3,15 +3,19 @@ package gui;
 import data.Continent;
 import data.Player;
 import data.Territory;
+import data.World;
 
 import javax.swing.*;
 import javax.swing.border.MatteBorder;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.Arrays;
 import java.util.List;
 
-public class WorldFrame extends JFrame {
+public class WorldFrame extends JFrame implements World {
 
     public static final int WIDTH = 1250;
     public static final int HEIGHT = 650;
@@ -84,13 +88,13 @@ public class WorldFrame extends JFrame {
                             gameBoard.repaint();
                         } else {
                             if (reinforcePhase) {
-                                reinforceTerritory(territory, 1);
+                                placeReinforcements(territory, 1);
                                 gameBoard.repaint();
                             } else {
-                                if (e.getButton() == MouseEvent.BUTTON1) {
+                                if (SwingUtilities.isLeftMouseButton(e)) {
                                     selectedTerritory = territory;
-                                } else if (e.getButton() == MouseEvent.BUTTON2) {
-                                    attackedTerritory = territory;
+                                } else if (SwingUtilities.isRightMouseButton(e)) {
+                                    attackTerritory(selectedTerritory, territory);
                                 }
 
                                 gameBoard.repaint();
@@ -108,6 +112,7 @@ public class WorldFrame extends JFrame {
         buttonPanel.setBorder(new MatteBorder(1, 0, 0, 0, Color.BLACK));
         nextTurnBtn = new JButton("Zug beenden");
         nextTurnBtn.setEnabled(!claimPhase);
+        nextTurnBtn.addActionListener(e -> nextTurn());
         buttonPanel.add(nextTurnBtn);
 
         Container contentPane = getContentPane();
@@ -193,7 +198,23 @@ public class WorldFrame extends JFrame {
         }
     }
 
-    public boolean claimTerritory(Territory territory) {
+    @Override
+    public long getGamespeed() {
+        return 1000;
+    }
+
+    @Override
+    public List<Territory> getTerritories() {
+        return territories;
+    }
+
+    @Override
+    public List<Continent> getContinents() {
+        return continents;
+    }
+
+    @Override
+    public void claimTerritory(Territory territory) {
         if (claimPhase) {
             if (territory.getPlayer() == -1) {
                 territory.setPlayer(activePlayer);
@@ -207,32 +228,71 @@ public class WorldFrame extends JFrame {
                 }
 
                 nextTurn();
-
-                return true;
-            } else {
-                // Evtl Meldung anzeigen: schon belegt
-                return false;
             }
+            // else {  //Evtl Meldung anzeigen: schon belegt }
 
 
         } else {
             System.out.println("Achtung: claimTerritory falsch aufgerufen!");
-            return false;
         }
     }
 
-    public boolean reinforceTerritory(Territory territory, int count) {
+    @Override
+    public void attackTerritory(Territory from, Territory to) {
+        if (claimPhase || reinforcePhase || from.getPlayer() != activePlayer || to.getPlayer() == activePlayer || from.getArmyCount() <= 1) {
+            System.out.println("Achtung! attackTerritory falsch aufgerufen!");
+        } else {
+                int attackers = Math.max(3, from.getArmyCount() - 1);
+                int[] attDices = new int[]{0, 0, 0};
+                int[] defDices = new int[]{0, 0};
+
+                for (int i = 0; i < attackers; i++)
+                    attDices[i] = (int) (Math.random() * 6) + 1;
+                for (int i = 0; i < to.getArmyCount() && i < 2; i++)
+                    defDices[i] = (int) (Math.random() * 6) + 1;
+
+                Arrays.sort(attDices);
+                Arrays.sort(defDices);
+
+                if (attDices[2] > defDices[1])
+                    to.decreaseArmyCount(1);
+                else
+                    from.decreaseArmyCount(1);
+
+                if (defDices[0] != 0) // zweite Auswertung nur, wenn zwei Verteidiger
+                {
+                    if (attDices[1] > defDices[0])
+                        to.decreaseArmyCount(1);
+                    else
+                        from.decreaseArmyCount(1);
+                }
+
+                if (to.getArmyCount() == 0) // übernehme Gebiet
+                {
+                    to.setPlayer(activePlayer);
+                    to.setArmyCount(attackers);
+                    from.decreaseArmyCount(attackers);
+                    attackedTerritory = to;
+                }
+
+        }
+    }
+
+    @Override
+    public void moveArmy(Territory from, Territory to, int count) {
+
+    }
+
+    @Override
+    public void placeReinforcements(Territory territory, int count) {
         if (!claimPhase && reinforcePhase && territory.getPlayer() == activePlayer) {
             if (count > 0 && count <= activeReinforcements) {
                 activeReinforcements -= count;
-                territory.setArmyCount(territory.getArmyCount() + count);
+                territory.increaseArmyCount(count);
                 if (activeReinforcements == 0)
                     nextTurn();
-                return true;
             }
         }
-
-        return false;
     }
 
     private void nextTurn() {
@@ -259,7 +319,7 @@ public class WorldFrame extends JFrame {
                     activeReinforcements += c.getReinforcements();
             }
         } else {
-
+            // TODO: attackPhase Vorbereitungen
         }
 
     }
