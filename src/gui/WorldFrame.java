@@ -29,6 +29,7 @@ public class WorldFrame extends JFrame implements World {
 
     private Territory selectedTerritory;
     private Territory attackedTerritory;
+    private Territory attackedFromTerritory;
 
     private Territory moveFromTerritory;
     private Territory moveToTerritory;
@@ -100,21 +101,28 @@ public class WorldFrame extends JFrame implements World {
 
                         if (claimPhase) {
                             claimTerritory(territory);
-                            //gameBoard.repaint();
                         } else {
                             if (reinforcePhase) {
                                 placeReinforcements(territory, 1);
                                 if (activeReinforcements == 0)
                                     nextTurn();
-                                //gameBoard.repaint();
                             } else {
                                 if (SwingUtilities.isLeftMouseButton(e)) {
-                                    selectedTerritory = territory;
-                                } else if (SwingUtilities.isRightMouseButton(e)) {
-                                    attackTerritory(selectedTerritory, territory);
-                                }
 
-                                gameBoard.repaint();
+                                    Territory tmp = selectedTerritory;
+                                    selectedTerritory = territory;
+                                    if (tmp != null)
+                                        gameBoard.repaint(tmp.getBounds().x, tmp.getBounds().y,
+                                                tmp.getBounds().width, tmp.getBounds().height);
+                                    gameBoard.repaint(territory.getBounds().x, territory.getBounds().y,
+                                            territory.getBounds().width, territory.getBounds().height);
+
+                                } else if (SwingUtilities.isRightMouseButton(e)) {
+                                    if (territory.getPlayer() == activePlayer)
+                                        moveArmy(selectedTerritory, territory, 1);
+                                    else
+                                        attackTerritory(selectedTerritory, territory);
+                                }
                             }
                         }
 
@@ -249,7 +257,8 @@ public class WorldFrame extends JFrame implements World {
                     // selber status wie am Ende einer Angriffs-Phase
                 }
 
-                gameBoard.repaint();
+                Rectangle bounds = territory.getBounds();
+                gameBoard.repaint(bounds.x, bounds.y, bounds.width, bounds.height);
                 nextTurn();
             }
             // else {  //Evtl Meldung anzeigen: schon belegt }
@@ -296,14 +305,42 @@ public class WorldFrame extends JFrame implements World {
                 to.setArmyCount(attackers);
                 from.decreaseArmyCount(attackers);
                 attackedTerritory = to;
+                attackedFromTerritory = from;
             }
             gameBoard.repaint();
+
+            // Verhindert weiteres Verschieben, wenn Land in Angriff verwickelt war.
+            if (movePossible && (from == moveFromTerritory || to == moveFromTerritory))
+                movePossible = false;
         }
     }
 
     @Override
     public void moveArmy(Territory from, Territory to, int count) {
+        if (!claimPhase && !reinforcePhase && from.getPlayer() == activePlayer
+                && to.getPlayer() == activePlayer && from.isNeighbor(to)) {
+            // Armeen nach Angriff nachziehen...
+            if (from == attackedFromTerritory && to == attackedTerritory) {
+                if (from.getArmyCount() > count) {
+                    from.decreaseArmyCount(count);
+                    to.increaseArmyCount(count);
+                    gameBoard.repaint();
+                }
+                return;
+            }
 
+            if (moveFromTerritory == null) {
+                moveFromTerritory = from;
+                moveToTerritory = to;
+            }
+            if (movePossible && ((moveFromTerritory == from && moveToTerritory == to) || (moveFromTerritory == to && moveToTerritory == from))) {
+                if (from.getArmyCount() > count) {
+                    from.decreaseArmyCount(count);
+                    to.increaseArmyCount(count);
+                    gameBoard.repaint();
+                }
+            }
+        }
     }
 
     @Override
@@ -312,7 +349,7 @@ public class WorldFrame extends JFrame implements World {
             if (count > 0 && count <= activeReinforcements) {
                 activeReinforcements -= count;
                 territory.increaseArmyCount(count);
-                gameBoard.repaint();
+                gameBoard.repaint(territory.getBounds().x, territory.getBounds().y, territory.getBounds().width, territory.getBounds().height);
             }
         }
     }
@@ -352,7 +389,11 @@ public class WorldFrame extends JFrame implements World {
                     activeReinforcements += c.getReinforcements();
             }
         } else {
-            // TODO: attackPhase Vorbereitungen
+            movePossible = true;
+            moveFromTerritory = null;
+            moveToTerritory = null;
+            attackedFromTerritory = null;
+            attackedTerritory = null;
         }
 
         if (players.get(activePlayer).isAI()) {
