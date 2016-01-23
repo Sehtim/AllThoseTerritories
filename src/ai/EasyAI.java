@@ -20,6 +20,8 @@ public class EasyAI implements AI {
      */
     @Override
     public void claimTurn(int computerID) {
+        delay();
+
         // Alle Territorien bestimmen, die noch frei sind
         List<Territory> unclaimedTerritories = new ArrayList<Territory>();
         for (Territory territory : world.getTerritories()) {
@@ -34,6 +36,8 @@ public class EasyAI implements AI {
 
     @Override
     public void reinforceTurn(int computerID, int reinforcements) {
+        delay();
+
         // Alle Territorien bestimmen, die der AI gehören
         List<Territory> ownedTerritories = new ArrayList<Territory>();
         for (Territory territory : world.getTerritories()) {
@@ -55,6 +59,8 @@ public class EasyAI implements AI {
 
     @Override
     public void movementTurn(int computerID) {
+        delay();
+
         // Alle Territorien bestimmen, die der AI gehören
         List<Territory> ownedTerritories = new ArrayList<Territory>();
         for (Territory territory : world.getTerritories()) {

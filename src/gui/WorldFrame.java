@@ -1,9 +1,8 @@
 package gui;
 
-import data.Continent;
-import data.Player;
-import data.Territory;
-import data.World;
+import ai.AI;
+import ai.EasyAI;
+import data.*;
 
 import javax.swing.*;
 import javax.swing.border.MatteBorder;
@@ -13,6 +12,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 public class WorldFrame extends JFrame implements World {
@@ -40,7 +40,10 @@ public class WorldFrame extends JFrame implements World {
     private boolean claimPhase;
     private boolean reinforcePhase;
 
+    private HashMap<PlayerType, AI> allAIs;
+
     private final JButton nextTurnBtn;
+    private final Canvas gameBoard;
 
     public WorldFrame(List<Player> players, List<Territory> territories, List<Continent> continents) {
         this.continents = continents;
@@ -50,21 +53,33 @@ public class WorldFrame extends JFrame implements World {
         this.drawFont = new Font("Arial", Font.BOLD, 12);
         this.showTerritoryNames = false;
 
+
+        /* Variablen fürs Spiel initialisieren */
         claimPhase = true;
         activePlayer = 0;
+
+        allAIs = new HashMap<>();
+
+        AI TheAI_TM = new EasyAI(this);
+        for (PlayerType t : PlayerType.values())
+            allAIs.put(t, TheAI_TM);
+
+
+        allAIs.remove(PlayerType.SPIELER);
+        /*-------------------------------------*/
 
         setTitle("AllThoseTerritories");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setResizable(false);
 
-        Canvas gameBoard = new Canvas() {
+        gameBoard = new Canvas() {
             @Override
             public void paint(Graphics g) {
                 paintGameBoard(g);
             }
         };
         gameBoard.setSize(WIDTH, HEIGHT);
-        //gameBoard.createBufferStrategy(2);
+
         gameBoard.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
@@ -85,11 +100,13 @@ public class WorldFrame extends JFrame implements World {
 
                         if (claimPhase) {
                             claimTerritory(territory);
-                            gameBoard.repaint();
+                            //gameBoard.repaint();
                         } else {
                             if (reinforcePhase) {
                                 placeReinforcements(territory, 1);
-                                gameBoard.repaint();
+                                if (activeReinforcements == 0)
+                                    nextTurn();
+                                //gameBoard.repaint();
                             } else {
                                 if (SwingUtilities.isLeftMouseButton(e)) {
                                     selectedTerritory = territory;
@@ -121,6 +138,11 @@ public class WorldFrame extends JFrame implements World {
         contentPane.add(buttonPanel, BorderLayout.SOUTH);
         pack();
         setLocationRelativeTo(null);
+
+        gameBoard.createBufferStrategy(4);
+
+        if (players.get(activePlayer).isAI())
+            (new Thread(this::startAITurn)).start();
     }
 
     private void paintGameBoard(Graphics g) {
@@ -200,7 +222,7 @@ public class WorldFrame extends JFrame implements World {
 
     @Override
     public long getGamespeed() {
-        return 1000;
+        return 200;
     }
 
     @Override
@@ -227,6 +249,7 @@ public class WorldFrame extends JFrame implements World {
                     // selber status wie am Ende einer Angriffs-Phase
                 }
 
+                gameBoard.repaint();
                 nextTurn();
             }
             // else {  //Evtl Meldung anzeigen: schon belegt }
@@ -242,39 +265,39 @@ public class WorldFrame extends JFrame implements World {
         if (claimPhase || reinforcePhase || from.getPlayer() != activePlayer || to.getPlayer() == activePlayer || from.getArmyCount() <= 1) {
             System.out.println("Achtung! attackTerritory falsch aufgerufen!");
         } else {
-                int attackers = Math.max(3, from.getArmyCount() - 1);
-                int[] attDices = new int[]{0, 0, 0};
-                int[] defDices = new int[]{0, 0};
+            int attackers = Math.min(3, from.getArmyCount() - 1);
+            int[] attDices = new int[]{0, 0, 0};
+            int[] defDices = new int[]{0, 0};
 
-                for (int i = 0; i < attackers; i++)
-                    attDices[i] = (int) (Math.random() * 6) + 1;
-                for (int i = 0; i < to.getArmyCount() && i < 2; i++)
-                    defDices[i] = (int) (Math.random() * 6) + 1;
+            for (int i = 0; i < attackers; i++)
+                attDices[i] = (int) (Math.random() * 6) + 1;
+            for (int i = 0; i < to.getArmyCount() && i < 2; i++)
+                defDices[i] = (int) (Math.random() * 6) + 1;
 
-                Arrays.sort(attDices);
-                Arrays.sort(defDices);
+            Arrays.sort(attDices);
+            Arrays.sort(defDices);
 
-                if (attDices[2] > defDices[1])
+            if (attDices[2] > defDices[1])
+                to.decreaseArmyCount(1);
+            else
+                from.decreaseArmyCount(1);
+
+            if (defDices[0] != 0 && attDices[1] != 0) // zweite Auswertung nur, wenn zwei Verteidiger und Angreifer
+            {
+                if (attDices[1] > defDices[0])
                     to.decreaseArmyCount(1);
                 else
                     from.decreaseArmyCount(1);
+            }
 
-                if (defDices[0] != 0) // zweite Auswertung nur, wenn zwei Verteidiger
-                {
-                    if (attDices[1] > defDices[0])
-                        to.decreaseArmyCount(1);
-                    else
-                        from.decreaseArmyCount(1);
-                }
-
-                if (to.getArmyCount() == 0) // übernehme Gebiet
-                {
-                    to.setPlayer(activePlayer);
-                    to.setArmyCount(attackers);
-                    from.decreaseArmyCount(attackers);
-                    attackedTerritory = to;
-                }
-
+            if (to.getArmyCount() == 0) // übernehme Gebiet
+            {
+                to.setPlayer(activePlayer);
+                to.setArmyCount(attackers);
+                from.decreaseArmyCount(attackers);
+                attackedTerritory = to;
+            }
+            gameBoard.repaint();
         }
     }
 
@@ -289,19 +312,29 @@ public class WorldFrame extends JFrame implements World {
             if (count > 0 && count <= activeReinforcements) {
                 activeReinforcements -= count;
                 territory.increaseArmyCount(count);
-                if (activeReinforcements == 0)
-                    nextTurn();
+                gameBoard.repaint();
             }
         }
     }
 
     private void nextTurn() {
+        // Siegbedingung
+        if (!claimPhase && territories.stream().allMatch(t -> t.getPlayer() == activePlayer)) {
+            System.out.println("Spieler " + players.get(activePlayer).getName() + " hat gewonnen!");
+            nextTurnBtn.setEnabled(false);
+            return;
+        }
+
         if (++activePlayer == players.size()) {
             activePlayer = 0;
 
             reinforcePhase = !reinforcePhase;
             nextTurnBtn.setEnabled(!reinforcePhase && !claimPhase);
         }
+
+        if (!claimPhase && territories.stream().noneMatch(t -> t.getPlayer() == activePlayer))
+            nextTurn();
+
 
         if (reinforcePhase) {
             activeReinforcements = 0;
@@ -322,6 +355,29 @@ public class WorldFrame extends JFrame implements World {
             // TODO: attackPhase Vorbereitungen
         }
 
+        if (players.get(activePlayer).isAI()) {
+            nextTurnBtn.setEnabled(false);
+
+            (new Thread(this::startAITurn)).start();
+        } else
+            nextTurnBtn.setEnabled(true);
+
+    }
+
+    private void startAITurn() {
+        if (!players.get(activePlayer).isAI())
+            return;
+
+        AI ai = allAIs.get(players.get(activePlayer).getPlayerType());
+        if (claimPhase)
+            ai.claimTurn(activePlayer);
+        else if (reinforcePhase) {
+            ai.reinforceTurn(activePlayer, activeReinforcements);
+            nextTurn();
+        } else {
+            ai.movementTurn(activePlayer);
+            nextTurn();
+        }
     }
 
 }
