@@ -8,11 +8,8 @@ import data.*;
 import javax.swing.*;
 import javax.swing.border.MatteBorder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -47,8 +44,9 @@ public class WorldFrame extends JFrame implements World {
 
     private HashMap<PlayerType, AI> allAIs;
 
+    private final JLabel infoLabel;
     private final JButton nextTurnBtn;
-    private final Canvas gameBoard;
+    private final JComponent gameBoard;
 
     public WorldFrame(List<Player> players, List<Territory> territories, List<Continent> continents) {
         this.continents = continents;
@@ -79,18 +77,14 @@ public class WorldFrame extends JFrame implements World {
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setResizable(false);
 
-        gameBoard = new Canvas() {
+        gameBoard = new JComponent() {
             @Override
             public void paint(Graphics g) {
-                BufferedImage image = new BufferedImage(gameBoard.getWidth(), gameBoard.getHeight(), BufferedImage.TYPE_INT_RGB);
-                Graphics2D graphics2D = image.createGraphics();
-                graphics2D.setColor(Color.LIGHT_GRAY);
-                graphics2D.fillRect(0, 0, gameBoard.getWidth(), gameBoard.getHeight());
-                paintGameBoard(graphics2D);
-                g.drawImage(image, 0, 0, this);
+                paintGameBoard(g);
             }
         };
         gameBoard.setSize(WIDTH, HEIGHT);
+        gameBoard.setPreferredSize(new Dimension(WIDTH, HEIGHT));
         gameBoard.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
@@ -101,17 +95,16 @@ public class WorldFrame extends JFrame implements World {
             public void mouseClicked(MouseEvent e) {
                 for (Territory territory : territories) {
                     if (territory.contains(e.getPoint())) {
-                        // TODO Aktionen
-
-
                         if (players.get(activePlayer).isAI()) {
                             // Evtl Meldung "AI ist an der Reihe" oder Informationen anzeigen
                             break;
                         }
 
                         if (claimPhase) {
-                            claimTerritory(territory);
-                            invokeNextTurn();
+                            if (territory.getPlayer() == -1) {
+                                claimTerritory(territory);
+                                invokeNextTurn();
+                            }
                         } else {
                             if (reinforcePhase) {
                                 placeReinforcements(territory, 1);
@@ -119,18 +112,18 @@ public class WorldFrame extends JFrame implements World {
                                     invokeNextTurn();
                             } else {
                                 if (SwingUtilities.isLeftMouseButton(e)) {
-
-                                    Territory tmp = selectedTerritory;
                                     selectedTerritory = territory;
-                                    if (tmp != null)
-                                        gameBoard.repaint(tmp.getBounds().x, tmp.getBounds().y,
-                                                tmp.getBounds().width, tmp.getBounds().height);
-                                    gameBoard.repaint(territory.getBounds().x, territory.getBounds().y,
-                                            territory.getBounds().width, territory.getBounds().height);
-
-//                                    gameBoard.repaint();
-
+                                    gameBoard.repaint();
                                 } else if (SwingUtilities.isRightMouseButton(e)) {
+                                    if (selectedTerritory == null) {
+                                        return; // Kein Territorium ausgewählt
+                                    }
+                                    if (selectedTerritory.getPlayer() != activePlayer) {
+                                        return; // Territorium gehört einem nicht
+                                    }
+                                    if (selectedTerritory.getArmyCount() == 1) {
+                                        return; // Man kann weder angreifen noch verschieben
+                                    }
                                     if (territory.getPlayer() == activePlayer)
                                         moveArmy(selectedTerritory, territory, 1);
                                     else
@@ -151,6 +144,9 @@ public class WorldFrame extends JFrame implements World {
         nextTurnBtn = new JButton("Zug beenden");
         nextTurnBtn.setEnabled(!claimPhase);
         nextTurnBtn.addActionListener(e -> invokeNextTurn());
+        infoLabel = new JLabel(players.get(activePlayer).getName() + ": Claim Phase");
+
+        buttonPanel.add(infoLabel);
         buttonPanel.add(nextTurnBtn);
 
         Container contentPane = getContentPane();
@@ -160,10 +156,18 @@ public class WorldFrame extends JFrame implements World {
         pack();
         setLocationRelativeTo(null);
 
-//        gameBoard.createBufferStrategy(2);
+        gameBoard.setDoubleBuffered(true);
 
-        if (players.get(activePlayer).isAI())
-            AIThread.start();
+        if (players.get(activePlayer).isAI()) {
+            Thread firstAITurn = new Thread() {
+                @Override
+                public void run() {
+                    startAITurn();
+                    AIThread.start();
+                }
+            };
+            firstAITurn.start();
+        }
     }
 
     private void paintGameBoard(Graphics g) {
@@ -256,28 +260,15 @@ public class WorldFrame extends JFrame implements World {
 
     @Override
     public void claimTerritory(Territory territory) {
-        if (claimPhase) {
-            if (territory.getPlayer() == -1) {
-                territory.setPlayer(activePlayer);
-                territory.setArmyCount(1);
-
-                if (territories.stream().allMatch(t -> t.getPlayer() >= 0)) {
-                    claimPhase = false;
-                    reinforcePhase = false;
-                    activePlayer = players.size() - 1;
-                    // selber status wie am Ende einer Angriffs-Phase
-                }
-
-                Rectangle bounds = territory.getBounds();
-                gameBoard.repaint(bounds.x, bounds.y, bounds.width, bounds.height);
-//                gameBoard.repaint();
-            }
-            // else {  //Evtl Meldung anzeigen: schon belegt }
-
-
-        } else {
+        if (!claimPhase || territory.getPlayer() != -1) {
             System.out.println("Achtung: claimTerritory falsch aufgerufen!");
+            return;
         }
+
+        territory.setPlayer(activePlayer);
+        territory.setArmyCount(1);
+
+        gameBoard.repaint();
     }
 
     @Override
@@ -360,16 +351,12 @@ public class WorldFrame extends JFrame implements World {
             if (count > 0 && count <= activeReinforcements) {
                 activeReinforcements -= count;
                 territory.increaseArmyCount(count);
-                gameBoard.repaint(territory.getBounds().x, territory.getBounds().y, territory.getBounds().width, territory.getBounds().height);
-//                gameBoard.repaint();
+                gameBoard.repaint();
             }
         }
     }
 
     private void invokeNextTurn() {
-        if (players.get(activePlayer).isAI())
-            return;
-
         if (AIThread.isAlive()) {
             System.out.println("Achtung, es wurde versucht, den Zug zu beenden, obwohl noch ein AIThread läuft!");
             AIThread.interrupt();
@@ -388,16 +375,18 @@ public class WorldFrame extends JFrame implements World {
                 return;
             }
 
-            // Index weiter
-            if (++activePlayer == players.size()) {
+            if (claimPhase && territories.stream().allMatch(t -> t.getPlayer() >= 0)) {
+                claimPhase = false;
+                reinforcePhase = true;
                 activePlayer = 0;
-
+            } else if (++activePlayer == players.size()) { // Index weiter
+                activePlayer = 0;
                 reinforcePhase = !reinforcePhase;
                 nextTurnBtn.setEnabled(!reinforcePhase && !claimPhase);
             }
 
             if (!claimPhase && territories.stream().noneMatch(t -> t.getPlayer() == activePlayer))
-                nextTurn();
+                continue; // Spieler bereits ausgeschieden
 
 
             if (reinforcePhase) {
@@ -421,6 +410,8 @@ public class WorldFrame extends JFrame implements World {
                 moveToTerritory = null;
                 attackedFromTerritory = null;
                 attackedTerritory = null;
+                selectedTerritory = null;
+                gameBoard.repaint(); // Selektiertes Territorium abwählen
             }
 
             if (players.get(activePlayer).isAI()) {
@@ -429,6 +420,8 @@ public class WorldFrame extends JFrame implements World {
                 startAITurn();
             } else
                 nextTurnBtn.setEnabled(!claimPhase && !reinforcePhase);
+
+            infoLabel.setText(players.get(activePlayer).getName() + ": " + (claimPhase ? "Claim Phase" : (reinforcePhase ? "Verstärkungsphase (" + activeReinforcements + " verfügbar)" : "Angriffsphase")));
         } while (players.get(activePlayer).isAI());
 
     }
