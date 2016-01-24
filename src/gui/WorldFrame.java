@@ -2,6 +2,7 @@ package gui;
 
 import ai.AI;
 import ai.EasyAI;
+import ai.NormalAI;
 import data.*;
 
 import javax.swing.*;
@@ -26,6 +27,8 @@ public class WorldFrame extends JFrame implements World {
 
     private int activePlayer;
     private int activeReinforcements;
+
+    private Thread AIThread;
 
     private Territory selectedTerritory;
     private Territory attackedTerritory;
@@ -54,6 +57,7 @@ public class WorldFrame extends JFrame implements World {
         this.drawFont = new Font("Arial", Font.BOLD, 12);
         this.showTerritoryNames = false;
 
+        AIThread = new Thread(this::nextTurn);
 
         /* Variablen fürs Spiel initialisieren */
         claimPhase = true;
@@ -65,6 +69,7 @@ public class WorldFrame extends JFrame implements World {
         for (PlayerType t : PlayerType.values())
             allAIs.put(t, TheAI_TM);
 
+        allAIs.put(PlayerType.NORMAL, new NormalAI(this));
 
         allAIs.remove(PlayerType.SPIELER);
         /*-------------------------------------*/
@@ -101,11 +106,12 @@ public class WorldFrame extends JFrame implements World {
 
                         if (claimPhase) {
                             claimTerritory(territory);
+                            invokeNextTurn();
                         } else {
                             if (reinforcePhase) {
                                 placeReinforcements(territory, 1);
                                 if (activeReinforcements == 0)
-                                    nextTurn();
+                                    invokeNextTurn();
                             } else {
                                 if (SwingUtilities.isLeftMouseButton(e)) {
 
@@ -137,7 +143,7 @@ public class WorldFrame extends JFrame implements World {
         buttonPanel.setBorder(new MatteBorder(1, 0, 0, 0, Color.BLACK));
         nextTurnBtn = new JButton("Zug beenden");
         nextTurnBtn.setEnabled(!claimPhase);
-        nextTurnBtn.addActionListener(e -> nextTurn());
+        nextTurnBtn.addActionListener(e -> invokeNextTurn());
         buttonPanel.add(nextTurnBtn);
 
         Container contentPane = getContentPane();
@@ -150,7 +156,7 @@ public class WorldFrame extends JFrame implements World {
         gameBoard.createBufferStrategy(4);
 
         if (players.get(activePlayer).isAI())
-            (new Thread(this::startAITurn)).start();
+            AIThread.start();
     }
 
     private void paintGameBoard(Graphics g) {
@@ -259,7 +265,6 @@ public class WorldFrame extends JFrame implements World {
 
                 Rectangle bounds = territory.getBounds();
                 gameBoard.repaint(bounds.x, bounds.y, bounds.width, bounds.height);
-                nextTurn();
             }
             // else {  //Evtl Meldung anzeigen: schon belegt }
 
@@ -354,54 +359,72 @@ public class WorldFrame extends JFrame implements World {
         }
     }
 
-    private void nextTurn() {
-        // Siegbedingung
-        if (!claimPhase && territories.stream().allMatch(t -> t.getPlayer() == activePlayer)) {
-            System.out.println("Spieler " + players.get(activePlayer).getName() + " hat gewonnen!");
-            nextTurnBtn.setEnabled(false);
+    private void invokeNextTurn()
+    {
+        if (players.get(activePlayer).isAI())
             return;
+
+        if (AIThread.isAlive())
+        {
+            System.out.println("Achtung, es wurde versucht, den Zug zu beenden, obwohl noch ein AIThread läuft!");
+            AIThread.interrupt();
         }
 
-        if (++activePlayer == players.size()) {
-            activePlayer = 0;
+        AIThread = new Thread(this::nextTurn);
+        AIThread.start();
+    }
 
-            reinforcePhase = !reinforcePhase;
-            nextTurnBtn.setEnabled(!reinforcePhase && !claimPhase);
-        }
-
-        if (!claimPhase && territories.stream().noneMatch(t -> t.getPlayer() == activePlayer))
-            nextTurn();
-
-
-        if (reinforcePhase) {
-            activeReinforcements = 0;
-            for (Territory t : territories) {
-                if (t.getPlayer() == activePlayer)
-                    activeReinforcements++;
+    private void nextTurn() {
+        do {
+            // Siegbedingung
+            if (!claimPhase && territories.stream().allMatch(t -> t.getPlayer() == activePlayer)) {
+                System.out.println("Spieler " + players.get(activePlayer).getName() + " hat gewonnen!");
+                nextTurnBtn.setEnabled(false);
+                return;
             }
 
-            activeReinforcements /= 3;
-            if (activeReinforcements < 3) // entspricht nicht den Vorschreibungen, aber den normalen Risiko-Regeln - abklären!
-                activeReinforcements = 3;
+            // Index weiter
+            if (++activePlayer == players.size()) {
+                activePlayer = 0;
 
-            for (Continent c : continents) {
-                if (c.getTerritories().stream().allMatch(t -> t.getPlayer() == activePlayer))
-                    activeReinforcements += c.getReinforcements();
+                reinforcePhase = !reinforcePhase;
+                nextTurnBtn.setEnabled(!reinforcePhase && !claimPhase);
             }
-        } else {
-            movePossible = true;
-            moveFromTerritory = null;
-            moveToTerritory = null;
-            attackedFromTerritory = null;
-            attackedTerritory = null;
-        }
 
-        if (players.get(activePlayer).isAI()) {
-            nextTurnBtn.setEnabled(false);
+            if (!claimPhase && territories.stream().noneMatch(t -> t.getPlayer() == activePlayer))
+                nextTurn();
 
-            (new Thread(this::startAITurn)).start();
-        } else
-            nextTurnBtn.setEnabled(true);
+
+            if (reinforcePhase) {
+                activeReinforcements = 0;
+                for (Territory t : territories) {
+                    if (t.getPlayer() == activePlayer)
+                        activeReinforcements++;
+                }
+
+                activeReinforcements /= 3;
+                if (activeReinforcements < 3) // entspricht nicht den Vorschreibungen, aber den normalen Risiko-Regeln - abklären!
+                    activeReinforcements = 3;
+
+                for (Continent c : continents) {
+                    if (c.getTerritories().stream().allMatch(t -> t.getPlayer() == activePlayer))
+                        activeReinforcements += c.getReinforcements();
+                }
+            } else {
+                movePossible = true;
+                moveFromTerritory = null;
+                moveToTerritory = null;
+                attackedFromTerritory = null;
+                attackedTerritory = null;
+            }
+
+            if (players.get(activePlayer).isAI()) {
+                nextTurnBtn.setEnabled(false);
+
+                startAITurn();
+            } else
+                nextTurnBtn.setEnabled(!claimPhase && !reinforcePhase);
+        } while (players.get(activePlayer).isAI());
 
     }
 
@@ -410,14 +433,13 @@ public class WorldFrame extends JFrame implements World {
             return;
 
         AI ai = allAIs.get(players.get(activePlayer).getPlayerType());
+
         if (claimPhase)
             ai.claimTurn(activePlayer);
         else if (reinforcePhase) {
             ai.reinforceTurn(activePlayer, activeReinforcements);
-            nextTurn();
         } else {
             ai.movementTurn(activePlayer);
-            nextTurn();
         }
     }
 
