@@ -12,6 +12,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -81,11 +82,15 @@ public class WorldFrame extends JFrame implements World {
         gameBoard = new Canvas() {
             @Override
             public void paint(Graphics g) {
-                paintGameBoard(g);
+                BufferedImage image = new BufferedImage(gameBoard.getWidth(), gameBoard.getHeight(), BufferedImage.TYPE_INT_RGB);
+                Graphics2D graphics2D = image.createGraphics();
+                graphics2D.setColor(Color.LIGHT_GRAY);
+                graphics2D.fillRect(0, 0, gameBoard.getWidth(), gameBoard.getHeight());
+                paintGameBoard(graphics2D);
+                g.drawImage(image, 0, 0, this);
             }
         };
         gameBoard.setSize(WIDTH, HEIGHT);
-
         gameBoard.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
@@ -123,6 +128,8 @@ public class WorldFrame extends JFrame implements World {
                                     gameBoard.repaint(territory.getBounds().x, territory.getBounds().y,
                                             territory.getBounds().width, territory.getBounds().height);
 
+//                                    gameBoard.repaint();
+
                                 } else if (SwingUtilities.isRightMouseButton(e)) {
                                     if (territory.getPlayer() == activePlayer)
                                         moveArmy(selectedTerritory, territory, 1);
@@ -153,15 +160,13 @@ public class WorldFrame extends JFrame implements World {
         pack();
         setLocationRelativeTo(null);
 
-        gameBoard.createBufferStrategy(4);
+//        gameBoard.createBufferStrategy(2);
 
         if (players.get(activePlayer).isAI())
             AIThread.start();
     }
 
     private void paintGameBoard(Graphics g) {
-        // TODO alles zeichnen
-
         // Verbindungen zeichnen
         g.setColor(Color.BLACK);
         for (int i = 0; i < territories.size(); i++) {
@@ -265,6 +270,7 @@ public class WorldFrame extends JFrame implements World {
 
                 Rectangle bounds = territory.getBounds();
                 gameBoard.repaint(bounds.x, bounds.y, bounds.width, bounds.height);
+//                gameBoard.repaint();
             }
             // else {  //Evtl Meldung anzeigen: schon belegt }
 
@@ -355,17 +361,16 @@ public class WorldFrame extends JFrame implements World {
                 activeReinforcements -= count;
                 territory.increaseArmyCount(count);
                 gameBoard.repaint(territory.getBounds().x, territory.getBounds().y, territory.getBounds().width, territory.getBounds().height);
+//                gameBoard.repaint();
             }
         }
     }
 
-    private void invokeNextTurn()
-    {
+    private void invokeNextTurn() {
         if (players.get(activePlayer).isAI())
             return;
 
-        if (AIThread.isAlive())
-        {
+        if (AIThread.isAlive()) {
             System.out.println("Achtung, es wurde versucht, den Zug zu beenden, obwohl noch ein AIThread läuft!");
             AIThread.interrupt();
         }
