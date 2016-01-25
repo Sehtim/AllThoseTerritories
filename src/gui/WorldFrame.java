@@ -8,6 +8,7 @@ import data.*;
 import javax.swing.*;
 import javax.swing.border.MatteBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.text.DefaultCaret;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -48,6 +49,7 @@ public class WorldFrame extends JFrame implements World {
 
     private HashMap<PlayerType, AI> allAIs;
 
+    private final JTextArea logTextPane;
     private final JLabel infoLabel;
     private final JButton nextTurnBtn;
     private final JComponent gameBoard;
@@ -158,8 +160,6 @@ public class WorldFrame extends JFrame implements World {
         nextTurnBtn.addActionListener(e -> invokeNextTurn());
         infoLabel = new JLabel(players.get(activePlayer).getName() + ": Claim Phase");
 
-        // TODO: evtl unteren Bereich in zwei Teile aufteilen - links für Informationen und rechts für nextTurn-Button - auch für Alignment!
-
         JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
         if (continents.size() > 0) {
@@ -192,8 +192,16 @@ public class WorldFrame extends JFrame implements World {
             });
 
             infoPanel.add(ContinentInfoPanel);
-
         }
+
+        logTextPane = new JTextArea(Math.max(continents.size(), 5), 35);
+        logTextPane.setEditable(false);
+        logTextPane.setLineWrap(true);
+        ((DefaultCaret) logTextPane.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+
+        JScrollPane scrollPane = new JScrollPane(logTextPane);
+
+        infoPanel.add(scrollPane);
 
         buttonPanel.add(infoLabel);
         buttonPanel.add(nextTurnBtn);
@@ -222,6 +230,14 @@ public class WorldFrame extends JFrame implements World {
             };
             firstAITurn.start();
         }
+    }
+
+    private void log(int playerID, String message) {
+        log(players.get(playerID).getName() + " " + message);
+    }
+
+    private void log(String message) {
+        logTextPane.setText(logTextPane.getText() + "\n" + message);
     }
 
     private void paintGameBoard(Graphics g) {
@@ -330,6 +346,7 @@ public class WorldFrame extends JFrame implements World {
         territory.setPlayer(activePlayer);
         territory.setArmyCount(1);
 
+        log(players.get(activePlayer).getName() + " hat " + territory.getName() + " besetzt.");
         gameBoard.repaint();
     }
 
@@ -339,6 +356,10 @@ public class WorldFrame extends JFrame implements World {
             System.out.println("Achtung! attackTerritory falsch aufgerufen!");
         } else {
             int attackers = Math.min(3, from.getArmyCount() - 1);
+
+            log(activePlayer, " greift " + to.getName() +
+                    " (" + players.get(to.getPlayer()).getName() + ") von " + from.getName() + " aus an!");
+
             int[] attDices = new int[]{0, 0, 0};
             int[] defDices = new int[]{0, 0};
 
@@ -363,6 +384,8 @@ public class WorldFrame extends JFrame implements World {
                     from.decreaseArmyCount(1);
             }
 
+            // TODO: Würfelergebnis oder zumindest besiegte Armeen in Log ausgeben
+
             if (to.getArmyCount() == 0) // übernehme Gebiet
             {
                 to.setPlayer(activePlayer);
@@ -370,6 +393,8 @@ public class WorldFrame extends JFrame implements World {
                 from.decreaseArmyCount(attackers);
                 attackedTerritory = to;
                 attackedFromTerritory = from;
+
+                log(activePlayer, " hat " + to.getName() + " eingenommen!");
             }
             gameBoard.repaint();
 
@@ -401,6 +426,7 @@ public class WorldFrame extends JFrame implements World {
                 if (from.getArmyCount() > count) {
                     from.decreaseArmyCount(count);
                     to.increaseArmyCount(count);
+                    log(activePlayer, " hat " + count + " Armeen von " + from.getName() + " nach " + to.getName() + " verschoben.");
                     gameBoard.repaint();
                 }
             }
@@ -414,6 +440,7 @@ public class WorldFrame extends JFrame implements World {
                 activeReinforcements -= count;
                 territory.increaseArmyCount(count);
                 infoLabel.setText(players.get(activePlayer).getName() + ": Verstärkungsphase (" + activeReinforcements + " verfügbar)");
+                log(activePlayer, " hat " + count + " Verstärkungen in " + territory.getName() + " platziert.");
                 gameBoard.repaint();
             }
         }
@@ -435,6 +462,7 @@ public class WorldFrame extends JFrame implements World {
             if (!claimPhase && territories.stream().allMatch(t -> t.getPlayer() == activePlayer)) {
                 System.out.println("Spieler " + players.get(activePlayer).getName() + " hat gewonnen!");
                 infoLabel.setText(players.get(activePlayer).getName() + " hat gewonnen!");
+                log(activePlayer, " hat gewonnen!");
                 nextTurnBtn.setEnabled(false);
                 return;
             }
