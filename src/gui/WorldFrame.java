@@ -7,6 +7,7 @@ import data.*;
 
 import javax.swing.*;
 import javax.swing.border.MatteBorder;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -22,6 +23,9 @@ public class WorldFrame extends JFrame implements World {
     private List<Continent> continents;
     private List<Territory> territories;
     private List<Player> players;
+
+    private HashMap<Continent, Color> continentColors;
+    private boolean continentViewMode;
 
     private int activePlayer;
     private int activeReinforcements;
@@ -72,6 +76,13 @@ public class WorldFrame extends JFrame implements World {
 
         allAIs.remove(PlayerType.SPIELER);
         /*-------------------------------------*/
+
+
+        this.continentViewMode = false;
+        continentColors = new HashMap<>();
+        for (Continent c : continents) {
+            continentColors.put(c, new Color((int) (Math.random() * 255), (int) (Math.random() * 255), (int) (Math.random() * 255)));
+        }
 
         setTitle("AllThoseTerritories");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -146,6 +157,41 @@ public class WorldFrame extends JFrame implements World {
         nextTurnBtn.addActionListener(e -> invokeNextTurn());
         infoLabel = new JLabel(players.get(activePlayer).getName() + ": Claim Phase");
 
+        // TODO: evtl unteren Bereich in zwei Teile aufteilen - links für Informationen und rechts für nextTurn-Button - auch für Alignment!
+
+        if (continents.size() > 0) {
+            JPanel ContinentInfoPanel = new JPanel(new GridLayout(continents.size(), 2));
+            for (Continent c : continents) {
+                JLabel nameLabel = new JLabel(c.getName());
+                nameLabel.setForeground(continentColors.get(c));
+
+                JLabel reinforcementsLabel = new JLabel(String.valueOf(c.getReinforcements()), SwingConstants.RIGHT);
+                reinforcementsLabel.setForeground(continentColors.get(c));
+
+                ContinentInfoPanel.add(nameLabel);
+                ContinentInfoPanel.add(reinforcementsLabel);
+            }
+
+            ContinentInfoPanel.setBorder(new TitledBorder("Kontinente"));
+
+            ContinentInfoPanel.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    continentViewMode = true;
+                    gameBoard.repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    continentViewMode = false;
+                    gameBoard.repaint();
+                }
+            });
+
+            buttonPanel.add(ContinentInfoPanel);
+
+        }
+
         buttonPanel.add(infoLabel);
         buttonPanel.add(nextTurnBtn);
 
@@ -197,14 +243,22 @@ public class WorldFrame extends JFrame implements World {
                 }
             }
         }
+        
+        HashMap<Territory, Color> colorMap = new HashMap<>();
+        if (continentViewMode) {
+            for (Continent c : continents)
+                for (Territory t : c.getTerritories())
+                    colorMap.put(t, continentColors.get(c));
+        } else {
+            for (Territory t : territories) {
+                if (t.getPlayer() != -1)
+                    colorMap.put(t, players.get(t.getPlayer()).getColor());
+            }
+        }
 
         // Landflächen
         for (Territory territory : territories) {
-            if (territory.getPlayer() == -1) {
-                g.setColor(Color.GRAY);
-            } else {
-                g.setColor(players.get(territory.getPlayer()).getColor());
-            }
+            g.setColor(colorMap.getOrDefault(territory, Color.GRAY));
             for (Polygon polygon : territory.getParts()) {
                 g.fillPolygon(polygon);
             }
@@ -216,7 +270,7 @@ public class WorldFrame extends JFrame implements World {
 
         // Ausgewähltes Territorium
         if (selectedTerritory != null) {
-            g.setColor(Color.YELLOW);
+            g.setColor(Color.ORANGE);
             for (Polygon polygon : selectedTerritory.getParts()) {
                 g.drawPolygon(polygon);
             }
@@ -351,6 +405,7 @@ public class WorldFrame extends JFrame implements World {
             if (count > 0 && count <= activeReinforcements) {
                 activeReinforcements -= count;
                 territory.increaseArmyCount(count);
+                infoLabel.setText(players.get(activePlayer).getName() + ": Verstärkungsphase (" + activeReinforcements + " verfügbar)");
                 gameBoard.repaint();
             }
         }
@@ -371,6 +426,7 @@ public class WorldFrame extends JFrame implements World {
             // Siegbedingung
             if (!claimPhase && territories.stream().allMatch(t -> t.getPlayer() == activePlayer)) {
                 System.out.println("Spieler " + players.get(activePlayer).getName() + " hat gewonnen!");
+                infoLabel.setText(players.get(activePlayer).getName() + " hat gewonnen!");
                 nextTurnBtn.setEnabled(false);
                 return;
             }

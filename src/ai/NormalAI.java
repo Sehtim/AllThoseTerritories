@@ -154,7 +154,10 @@ public class NormalAI implements AI {
         }
 
         // Zielterritorien festlegen...
-        targetTerritories = targetContinent.getTerritories().stream().filter(t -> t.getPlayer() != computerID).collect(Collectors.toList());
+        if (targetContinent != null)
+            targetTerritories = targetContinent.getTerritories().stream().filter(t -> t.getPlayer() != computerID).collect(Collectors.toList());
+        else
+            targetTerritories = world.getTerritories().stream().filter(t -> t.getPlayer() != computerID).collect(Collectors.toList());
     }
 
     private void delay() {
