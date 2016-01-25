@@ -80,8 +80,10 @@ public class WorldFrame extends JFrame implements World {
 
         this.continentViewMode = false;
         continentColors = new HashMap<>();
-        for (Continent c : continents) {
-            continentColors.put(c, new Color((int) (Math.random() * 255), (int) (Math.random() * 255), (int) (Math.random() * 255)));
+
+        // Gleichverteilung der Kontinentfarben durch Hue-Wert in HSB Darstellung
+        for (int i = 0; i < continents.size(); i++) {
+            continentColors.put(continents.get(i), Color.getHSBColor((float) i / (float) continents.size(), 0.7f, 0.8f));
         }
 
         setTitle("AllThoseTerritories");
@@ -118,7 +120,7 @@ public class WorldFrame extends JFrame implements World {
                             }
                         } else {
                             if (reinforcePhase) {
-                                placeReinforcements(territory, 1);
+                                placeReinforcements(territory, e.isShiftDown() ? activeReinforcements : 1);
                                 if (activeReinforcements == 0)
                                     invokeNextTurn();
                             } else {
@@ -136,7 +138,7 @@ public class WorldFrame extends JFrame implements World {
                                         return; // Man kann weder angreifen noch verschieben
                                     }
                                     if (territory.getPlayer() == activePlayer)
-                                        moveArmy(selectedTerritory, territory, 1);
+                                        moveArmy(selectedTerritory, territory, e.isShiftDown() ? selectedTerritory.getArmyCount() - 1 : 1);
                                     else
                                         attackTerritory(selectedTerritory, territory);
                                 }
@@ -151,13 +153,14 @@ public class WorldFrame extends JFrame implements World {
         });
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setBorder(new MatteBorder(1, 0, 0, 0, Color.BLACK));
         nextTurnBtn = new JButton("Zug beenden");
         nextTurnBtn.setEnabled(!claimPhase);
         nextTurnBtn.addActionListener(e -> invokeNextTurn());
         infoLabel = new JLabel(players.get(activePlayer).getName() + ": Claim Phase");
 
         // TODO: evtl unteren Bereich in zwei Teile aufteilen - links für Informationen und rechts für nextTurn-Button - auch für Alignment!
+
+        JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
         if (continents.size() > 0) {
             JPanel ContinentInfoPanel = new JPanel(new GridLayout(continents.size(), 2));
@@ -188,17 +191,22 @@ public class WorldFrame extends JFrame implements World {
                 }
             });
 
-            buttonPanel.add(ContinentInfoPanel);
+            infoPanel.add(ContinentInfoPanel);
 
         }
 
         buttonPanel.add(infoLabel);
         buttonPanel.add(nextTurnBtn);
 
+        JPanel splitPanel = new JPanel(new GridLayout(1, 2));
+        splitPanel.setBorder(new MatteBorder(1, 0, 0, 0, Color.BLACK));
+        splitPanel.add(infoPanel);
+        splitPanel.add(buttonPanel);
+
         Container contentPane = getContentPane();
         contentPane.setLayout(new BorderLayout());
         contentPane.add(gameBoard, BorderLayout.CENTER);
-        contentPane.add(buttonPanel, BorderLayout.SOUTH);
+        contentPane.add(splitPanel, BorderLayout.SOUTH);
         pack();
         setLocationRelativeTo(null);
 
@@ -243,7 +251,7 @@ public class WorldFrame extends JFrame implements World {
                 }
             }
         }
-        
+
         HashMap<Territory, Color> colorMap = new HashMap<>();
         if (continentViewMode) {
             for (Continent c : continents)

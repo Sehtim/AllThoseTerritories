@@ -27,12 +27,9 @@ public class NormalAI implements AI {
         List<Continent> allContinents = world.getContinents();
 
         // Bevorzugt: Länder auf Kontinenten, auf denen er schon etwas besetzt hat
-        for (Territory ownTerritory : ownTerritories)
-        {
-            for (Continent c : allContinents)
-            {
-                if (c.getTerritories().contains(ownTerritory))
-                {
+        for (Territory ownTerritory : ownTerritories) {
+            for (Continent c : allContinents) {
+                if (c.getTerritories().contains(ownTerritory)) {
                     List<Territory> wantedTerritories = c.getTerritories().stream().filter(t -> t.getPlayer() == -1).collect(Collectors.toList());
                     if (wantedTerritories.size() != 0) {
                         delay();
@@ -55,12 +52,10 @@ public class NormalAI implements AI {
 
         Territory source = null;
 
-        for (Territory target : targetTerritories)
-        {
+        for (Territory target : targetTerritories) {
             // Suche mögliche Angreifer und wähle den mit den meisten Armeen, um ihn zu verstärken
             source = ownTerritories.stream().filter(t -> t.isNeighbor(target)).max((t1, t2) -> t1.getArmyCount() - t2.getArmyCount()).orElse(null);
-            if (source != null)
-            {
+            if (source != null) {
                 // Verstärke bestenfalls mit doppelt so vielen Armeen + 1, wie im Zielland stehen
                 delay();
                 int count = Math.min(reinforcements, target.getArmyCount() * 2 + 1);
@@ -72,13 +67,12 @@ public class NormalAI implements AI {
         }
 
         // Verbleibende Verstärkungen auf das erste Angriffsland verteilen, sonst zufällig
-        if (reinforcements > 0)
-        {
+        if (reinforcements > 0) {
             delay();
-           if (source != null)
-               world.placeReinforcements(source, reinforcements);
-           else
-               world.placeReinforcements(ownTerritories.get(ThreadLocalRandom.current().nextInt(ownTerritories.size())), reinforcements);
+            if (source != null)
+                world.placeReinforcements(source, reinforcements);
+            else
+                world.placeReinforcements(ownTerritories.get(ThreadLocalRandom.current().nextInt(ownTerritories.size())), reinforcements);
         }
     }
 
@@ -89,17 +83,16 @@ public class NormalAI implements AI {
 
         boolean continentPhase = true;
 
-        // Greife nur an, solange mehr als 1 Angreifer zur Verfügung steht...
-        while ((attackerTerritories = world.getTerritories().stream().filter(t -> t.getPlayer() == computerID && t.getArmyCount() > min_attacker_count).collect(Collectors.toList())).size() > 0)
-        {
+        min_attacker_count = 2;
+
+        // Greife nur an, solange mehr als min_attacker_count Angreifer zur Verfügung stehen...
+        while ((attackerTerritories = world.getTerritories().stream().filter(t -> t.getPlayer() == computerID && t.getArmyCount() > min_attacker_count).collect(Collectors.toList())).size() > 0) {
             boolean attacked = false;
 
             for (Territory att : attackerTerritories) {
                 Territory lastTarget = null;
-                for (Territory target : targetTerritories)
-                {
-                    if (att.isNeighbor(target) && target.getPlayer() != computerID)
-                    {
+                for (Territory target : targetTerritories) {
+                    if (att.isNeighbor(target) && target.getPlayer() != computerID) {
                         while (att.getArmyCount() > min_attacker_count) {
                             delay();
                             world.attackTerritory(att, target);
@@ -114,8 +107,7 @@ public class NormalAI implements AI {
                 }
 
                 // Verschiebe Armeen in letztes erobertes Gebiet (darf man nach Angriff immer)
-                if (att.getArmyCount() > 1 && lastTarget != null)
-                {
+                if (att.getArmyCount() > 1 && lastTarget != null) {
                     delay();
                     world.moveArmy(att, lastTarget, att.getArmyCount() - 1);
                 }
@@ -127,9 +119,7 @@ public class NormalAI implements AI {
                     targetTerritories = world.getTerritories().stream().filter(t -> t.getPlayer() != computerID).collect(Collectors.toList());
                     continentPhase = false;
                     min_attacker_count += 2;
-                }
-                else
-                {
+                } else {
                     min_attacker_count -= 2;
                     break;
                 }
@@ -137,15 +127,13 @@ public class NormalAI implements AI {
         }
     }
 
-    private void findTargets(int computerID)
-    {
+    private void findTargets(int computerID) {
         // Kontinent ausfindig machen, von dem er schon am meisten besetzt hat -> nächstes Ziel
         double targetQuot = -1.0;
         List<Continent> allContinents = world.getContinents();
-        for (Continent c : allContinents)
-        {
-            double x = (double)c.getTerritories().stream().filter(t -> t.getPlayer() == computerID).count()
-                    / (double)c.getTerritories().size();
+        for (Continent c : allContinents) {
+            double x = (double) c.getTerritories().stream().filter(t -> t.getPlayer() == computerID).count()
+                    / (double) c.getTerritories().size();
 
             if (x < 1.0 && x > targetQuot) {
                 targetContinent = c;
