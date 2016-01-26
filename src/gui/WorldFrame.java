@@ -158,6 +158,7 @@ public class WorldFrame extends JFrame implements World {
         JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
         if (continents.size() > 0) {
+            // Kontinente inkl Verstärkungen in einem Panel anzeigen
             JPanel ContinentInfoPanel = new JPanel(new GridLayout(continents.size(), 2));
             for (Continent c : continents) {
                 JLabel nameLabel = new JLabel(c.getName());
@@ -300,15 +301,14 @@ public class WorldFrame extends JFrame implements World {
         }
 
         // Informationen (Name, Anzahl Armeen)
-        g.setColor(Color.BLACK);
         g.setFont(drawFont);
         FontMetrics metrics = g.getFontMetrics(drawFont);
 
         for (Territory territory : territories) {
+            g.setColor(getBestColorFor(colorMap.get(territory)));
             Point cap = territory.getCapitalPosition();
 
             String toDraw;
-
             if (showTerritoryNames) {
                 toDraw = territory.getName();
                 g.drawString(toDraw, cap.x - metrics.stringWidth(toDraw) / 2, cap.y - metrics.getHeight() / 2);
@@ -316,7 +316,16 @@ public class WorldFrame extends JFrame implements World {
 
             toDraw = String.valueOf(territory.getArmyCount());
             g.drawString(toDraw, cap.x - metrics.stringWidth(toDraw) / 2, cap.y + metrics.getHeight() / 2);
+        }
+    }
 
+    private Color getBestColorFor(Color background) {
+        int ratioWhite = 0; // 1.05 / getRelativeLuminance + 0.05
+        int ratioBlack = 0; // getRelativeLuminance + 0.05 / 0.05
+        if (ratioWhite > ratioBlack) {
+            return Color.WHITE;
+        } else {
+            return Color.BLACK;
         }
     }
 
