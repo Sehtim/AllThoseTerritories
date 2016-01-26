@@ -11,6 +11,8 @@ import javax.swing.border.MatteBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.text.DefaultCaret;
 import java.awt.*;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
@@ -23,6 +25,7 @@ public class WorldFrame extends JFrame implements World {
     public static final int HEIGHT = 650;
 
     // GUI Elemente
+    private final JCheckBox showTerritoryNames;
     private final JTextArea logTextPane;
     private final JLabel infoLabel;
     private final JButton nextTurnBtn;
@@ -31,9 +34,7 @@ public class WorldFrame extends JFrame implements World {
     private HashMap<Continent, Color> continentColors;
     private boolean continentViewMode;
 
-    private boolean showTerritoryNames;
     private Font drawFont;
-
 
     private List<Continent> continents;
     private List<Territory> territories;
@@ -64,7 +65,6 @@ public class WorldFrame extends JFrame implements World {
         this.territories = territories;
 
         this.drawFont = new Font("Arial", Font.BOLD, 12);
-        this.showTerritoryNames = false;
 
         AIThread = new Thread(this::nextTurn);
 
@@ -199,6 +199,10 @@ public class WorldFrame extends JFrame implements World {
 
         infoPanel.add(scrollPane);
 
+        showTerritoryNames= new JCheckBox("Territorien anzeigen");
+        showTerritoryNames.addItemListener(e -> gameBoard.repaint());
+//        infoPanel.add(showTerritoryNames);
+
         buttonPanel.add(infoLabel);
         buttonPanel.add(nextTurnBtn);
 
@@ -309,7 +313,7 @@ public class WorldFrame extends JFrame implements World {
             Point cap = territory.getCapitalPosition();
 
             String toDraw;
-            if (showTerritoryNames) {
+            if (showTerritoryNames.isSelected()) {
                 toDraw = territory.getName();
                 g.drawString(toDraw, cap.x - metrics.stringWidth(toDraw) / 2, cap.y - metrics.getHeight() / 2);
             }
