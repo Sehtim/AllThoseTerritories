@@ -2,6 +2,7 @@ package gui;
 
 import ai.AI;
 import ai.EasyAI;
+import ai.HardAI;
 import ai.NormalAI;
 import data.*;
 
@@ -21,17 +22,28 @@ public class WorldFrame extends JFrame implements World {
     public static final int WIDTH = 1250;
     public static final int HEIGHT = 650;
 
-    private List<Continent> continents;
-    private List<Territory> territories;
-    private List<Player> players;
+    // GUI Elemente
+    private final JTextArea logTextPane;
+    private final JLabel infoLabel;
+    private final JButton nextTurnBtn;
+    private final JComponent gameBoard;
 
     private HashMap<Continent, Color> continentColors;
     private boolean continentViewMode;
 
+    private boolean showTerritoryNames;
+    private Font drawFont;
+
+
+    private List<Continent> continents;
+    private List<Territory> territories;
+    private List<Player> players;
+
+    private boolean claimPhase;
+    private boolean reinforcePhase;
+
     private int activePlayer;
     private int activeReinforcements;
-
-    private Thread AIThread;
 
     private Territory selectedTerritory;
     private Territory attackedTerritory;
@@ -40,19 +52,11 @@ public class WorldFrame extends JFrame implements World {
     private Territory moveFromTerritory;
     private Territory moveToTerritory;
     private boolean movePossible;
-
-    private boolean showTerritoryNames;
-    private Font drawFont;
-
-    private boolean claimPhase;
-    private boolean reinforcePhase;
+    private boolean claimPossible;
 
     private HashMap<PlayerType, AI> allAIs;
+    private Thread AIThread;
 
-    private final JTextArea logTextPane;
-    private final JLabel infoLabel;
-    private final JButton nextTurnBtn;
-    private final JComponent gameBoard;
 
     public WorldFrame(List<Player> players, List<Territory> territories, List<Continent> continents) {
         this.continents = continents;
@@ -66,17 +70,13 @@ public class WorldFrame extends JFrame implements World {
 
         /* Variablen fürs Spiel initialisieren */
         claimPhase = true;
+        claimPossible = true;
         activePlayer = 0;
 
         allAIs = new HashMap<>();
-
-        AI TheAI_TM = new EasyAI(this);
-        for (PlayerType t : PlayerType.values())
-            allAIs.put(t, TheAI_TM);
-
+        allAIs.put(PlayerType.EINFACH, new EasyAI(this));
         allAIs.put(PlayerType.NORMAL, new NormalAI(this));
-
-        allAIs.remove(PlayerType.SPIELER);
+        allAIs.put(PlayerType.SCHWER, new HardAI(this));
         /*-------------------------------------*/
 
 
@@ -89,7 +89,7 @@ public class WorldFrame extends JFrame implements World {
         }
 
         setTitle("AllThoseTerritories");
-        setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setResizable(false);
 
         gameBoard = new JComponent() {
@@ -102,11 +102,6 @@ public class WorldFrame extends JFrame implements World {
         gameBoard.setPreferredSize(new Dimension(WIDTH, HEIGHT));
         gameBoard.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseMoved(MouseEvent e) {
-                // TODO evtl. für Tooltips
-            }
-
-            @Override
             public void mouseClicked(MouseEvent e) {
                 for (Territory territory : territories) {
                     if (territory.contains(e.getPoint())) {
@@ -116,7 +111,7 @@ public class WorldFrame extends JFrame implements World {
                         }
 
                         if (claimPhase) {
-                            if (territory.getPlayer() == -1) {
+                            if (territory.getPlayer() == -1 && claimPossible) {
                                 claimTerritory(territory);
                                 invokeNextTurn();
                             }
@@ -194,7 +189,7 @@ public class WorldFrame extends JFrame implements World {
             infoPanel.add(ContinentInfoPanel);
         }
 
-        logTextPane = new JTextArea(Math.max(continents.size(), 5), 35);
+        logTextPane = new JTextArea(Math.max(continents.size(), 7), 35);
         logTextPane.setEditable(false);
         logTextPane.setLineWrap(true);
         ((DefaultCaret) logTextPane.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
@@ -241,6 +236,8 @@ public class WorldFrame extends JFrame implements World {
     }
 
     private void paintGameBoard(Graphics g) {
+        ((Graphics2D) g).setStroke(new BasicStroke(3, BasicStroke.JOIN_ROUND, BasicStroke.CAP_ROUND));
+
         // Verbindungen zeichnen
         g.setColor(Color.BLACK);
         for (int i = 0; i < territories.size(); i++) {
@@ -261,8 +258,7 @@ public class WorldFrame extends JFrame implements World {
                             g.drawLine(x1, t1.getCapitalPosition().y, WIDTH, y);
                         }
                     } else {
-                        g.drawLine(t1.getCapitalPosition().x, t1.getCapitalPosition().y,
-                                t2.getCapitalPosition().x, t2.getCapitalPosition().y);
+                        g.drawLine(x1, t1.getCapitalPosition().y, x2, t2.getCapitalPosition().y);
                     }
                 }
             }
@@ -294,10 +290,13 @@ public class WorldFrame extends JFrame implements World {
 
         // Ausgewähltes Territorium
         if (selectedTerritory != null) {
-            g.setColor(Color.ORANGE);
+            Stroke oldStroke = ((Graphics2D) g).getStroke();
+            ((Graphics2D) g).setStroke(new BasicStroke(1));
+            g.setColor(new Color(255, 206, 26));
             for (Polygon polygon : selectedTerritory.getParts()) {
                 g.drawPolygon(polygon);
             }
+            ((Graphics2D) g).setStroke(oldStroke);
         }
 
         // Informationen (Name, Anzahl Armeen)
@@ -343,6 +342,7 @@ public class WorldFrame extends JFrame implements World {
             return;
         }
 
+        claimPossible = false;
         territory.setPlayer(activePlayer);
         territory.setArmyCount(1);
 
@@ -384,7 +384,19 @@ public class WorldFrame extends JFrame implements World {
                     from.decreaseArmyCount(1);
             }
 
-            // TODO: Würfelergebnis oder zumindest besiegte Armeen in Log ausgeben
+            StringBuilder diceResult = new StringBuilder("Angreiferwurf: ");
+            for (int i = attDices.length - 1; i >= 0; i--) {
+                if (attDices[i] != 0) {
+                    diceResult.append("[").append(attDices[i]).append("]");
+                }
+            }
+            diceResult.append(" / Verteidigerwurf: ");
+            for (int i = defDices.length - 1; i >= 0; i--) {
+                if (defDices[i] != 0) {
+                    diceResult.append("[").append(defDices[i]).append("]");
+                }
+            }
+            log(diceResult.toString());
 
             if (to.getArmyCount() == 0) // übernehme Gebiet
             {
@@ -467,43 +479,46 @@ public class WorldFrame extends JFrame implements World {
                 return;
             }
 
-            if (claimPhase && territories.stream().allMatch(t -> t.getPlayer() >= 0)) {
-                claimPhase = false;
-                reinforcePhase = true;
-                activePlayer = 0;
-            } else if (++activePlayer == players.size()) { // Index weiter
-                activePlayer = 0;
-                reinforcePhase = !reinforcePhase;
-                nextTurnBtn.setEnabled(!reinforcePhase && !claimPhase);
-            }
-
-            if (!claimPhase && territories.stream().noneMatch(t -> t.getPlayer() == activePlayer))
-                continue; // Spieler bereits ausgeschieden
-
-
-            if (reinforcePhase) {
-                activeReinforcements = 0;
-                for (Territory t : territories) {
-                    if (t.getPlayer() == activePlayer)
-                        activeReinforcements++;
+            do {
+                if (claimPhase && territories.stream().allMatch(t -> t.getPlayer() >= 0)) { // Prüfen, ob Claimphase zu Ende
+                    claimPhase = false;
+                    reinforcePhase = true;
+                    activePlayer = 0;
+                } else if (++activePlayer == players.size()) { // Index weiter
+                    activePlayer = 0;
+                    reinforcePhase = !reinforcePhase;
+                    nextTurnBtn.setEnabled(!reinforcePhase && !claimPhase);
                 }
+                // Spieler, die bereits ausgeschieden sind übersprignen
+            } while (!claimPhase && territories.stream().noneMatch(t -> t.getPlayer() == activePlayer));
 
-                activeReinforcements /= 3;
-                if (activeReinforcements < 3) // entspricht nicht den Vorschreibungen, aber den normalen Risiko-Regeln - abklären!
-                    activeReinforcements = 3;
-
-                for (Continent c : continents) {
-                    if (c.getTerritories().stream().allMatch(t -> t.getPlayer() == activePlayer))
-                        activeReinforcements += c.getReinforcements();
-                }
+            if (claimPhase) {
+                claimPossible = true;
             } else {
-                movePossible = true;
-                moveFromTerritory = null;
-                moveToTerritory = null;
-                attackedFromTerritory = null;
-                attackedTerritory = null;
-                selectedTerritory = null;
-                gameBoard.repaint(); // Selektiertes Territorium abwählen
+                if (reinforcePhase) {
+                    activeReinforcements = 0;
+                    for (Territory t : territories) {
+                        if (t.getPlayer() == activePlayer)
+                            activeReinforcements++;
+                    }
+
+                    activeReinforcements /= 3;
+                    if (activeReinforcements < 3) // entspricht nicht den Vorschreibungen, aber den normalen Risiko-Regeln - abklären!
+                        activeReinforcements = 3;
+
+                    for (Continent c : continents) {
+                        if (c.getTerritories().stream().allMatch(t -> t.getPlayer() == activePlayer))
+                            activeReinforcements += c.getReinforcements();
+                    }
+                } else {
+                    movePossible = true;
+                    moveFromTerritory = null;
+                    moveToTerritory = null;
+                    attackedFromTerritory = null;
+                    attackedTerritory = null;
+                    selectedTerritory = null;
+                    gameBoard.repaint(); // Selektiertes Territorium abwählen
+                }
             }
 
             if (players.get(activePlayer).isAI()) {
@@ -515,7 +530,6 @@ public class WorldFrame extends JFrame implements World {
 
             infoLabel.setText(players.get(activePlayer).getName() + ": " + (claimPhase ? "Claim Phase" : (reinforcePhase ? "Verstärkungsphase (" + activeReinforcements + " verfügbar)" : "Angriffsphase")));
         } while (players.get(activePlayer).isAI());
-
     }
 
     private void startAITurn() {

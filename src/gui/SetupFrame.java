@@ -133,26 +133,18 @@ public class SetupFrame extends JFrame {
                     }
                     String continent = parts[0].trim();
                     // Aus erstem Teil die Verstärkungen rausparsen
-                    int index_reinforcements;
-                    for (index_reinforcements = 0; index_reinforcements < continent.length(); index_reinforcements++) {
-                        if (Character.isDigit(continent.charAt(index_reinforcements))) {
-                            break;
-                        }
-                    }
-                    if (index_reinforcements == continent.length()) {
-                        throw new IOException(errorMessage);
-                    }
+                    int index_reinforcements = continent.trim().lastIndexOf(" ");
                     int reinforcments;
                     try {
                         reinforcments = Integer.parseInt(continent.substring(index_reinforcements).trim());
                     } catch (NumberFormatException ex) {
                         throw new IOException(errorMessage, ex);
                     }
-                    continent = continent.substring(0, index_reinforcements).trim();
+                    continent = continent.substring(0, index_reinforcements);
 
 
                     parts = parts[1].split("-");
-                    List<Territory> continentTerritories = new ArrayList<Territory>();
+                    List<Territory> continentTerritories = new ArrayList<>();
                     for (String part : parts) {
                         part = part.trim();
                         if (part.isEmpty()) {
@@ -227,6 +219,7 @@ public class SetupFrame extends JFrame {
         mapFileTF = new JTextField();
         mapFileTF.setColumns(20);
         mapFileTF.setText(pathToMap);
+        mapFileTF.setEditable(false);
         JButton chooseMapFileBtn = new JButton("...");
         chooseMapFileBtn.addActionListener(e -> {
             JFileChooser mapChooser = new JFileChooser(mapFileTF.getText());
@@ -256,7 +249,7 @@ public class SetupFrame extends JFrame {
         JButton startButton = new JButton("Spiel beginnen");
         startButton.addActionListener(e -> {
             if (validFile) {
-                new WorldFrame(playerSettingsPanel.getPlayerList(), new ArrayList<Territory>(territories.values()), continents).setVisible(true);
+                new WorldFrame(playerSettingsPanel.getPlayerList(), new ArrayList<>(territories.values()), continents).setVisible(true);
                 SetupFrame.this.dispose();
             } else {
                 JOptionPane.showMessageDialog(SetupFrame.this, "Das Spiel kann nur mit einer gültigen .map-Datei begonnen werden!", "Ungültige Karte", JOptionPane.ERROR_MESSAGE);

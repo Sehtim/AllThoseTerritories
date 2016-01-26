@@ -48,7 +48,7 @@ public class LinkedPlayerPanel extends JPanel {
 
         public PlayerPanel(String name, PlayerType playerType, Color color) {
             playerNameTF = new JTextField(name, 15);
-            playerTypeBox = new JComboBox<PlayerType>(PlayerType.values());
+            playerTypeBox = new JComboBox<>(PlayerType.values());
             playerTypeBox.setSelectedItem(playerType);
             colorButton = new JButton();
             colorButton.setBackground(color);

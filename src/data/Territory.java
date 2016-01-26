@@ -14,14 +14,10 @@ public class Territory {
     private int player = -1;
     private int armyCount = 0;
 
-    private Rectangle bounds;
-
     public Territory(String name) {
         this.name = name;
         this.parts = new ArrayList<>();
         this.neighbors = new HashSet<>();
-
-        this.bounds = new Rectangle();
     }
 
     public boolean isNeighbor(Territory t) {
@@ -80,16 +76,6 @@ public class Territory {
 
     public void addPart(Polygon polygon) {
         parts.add(polygon);
-        final Rectangle rect = polygon.getBounds();
-
-        int maxX = Math.max(rect.x + rect.width, bounds.x + bounds.width);
-        int maxY = Math.max(rect.y + rect.height, bounds.y + bounds.height);
-
-        bounds.x = Math.min(bounds.x, rect.x);
-        bounds.y = Math.min(bounds.y, rect.y);
-
-        bounds.width = maxX - bounds.x;
-        bounds.height = maxY - bounds.y;
     }
 
     public boolean contains(Point p) {
@@ -99,10 +85,5 @@ public class Territory {
             }
         }
         return false;
-    }
-
-    public Rectangle getBounds()
-    {
-        return this.bounds;
     }
 }
