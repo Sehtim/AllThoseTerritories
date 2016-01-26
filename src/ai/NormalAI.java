@@ -66,7 +66,7 @@ public class NormalAI implements AI {
             }
         }
 
-        // Verbleibende Verstärkungen auf das erste Angriffsland verteilen, sonst zufällig
+        // Verbleibende Verstärkungen auf das letzte Angriffsland verteilen, sonst zufällig
         if (reinforcements > 0) {
             delay();
             if (source != null)
