@@ -307,6 +307,8 @@ public class WorldFrame extends JFrame implements World {
         for (Territory territory : territories) {
             g.setColor(getBestColorFor(colorMap.get(territory)));
             Point cap = territory.getCapitalPosition();
+            Color b = players.get(territory.getPlayer()).getColor();
+
 
             String toDraw;
             if (showTerritoryNames) {
@@ -556,4 +558,15 @@ public class WorldFrame extends JFrame implements World {
         }
     }
 
+    private static double getRelativeLuminance(Color c) {
+        double r = (double) c.getRed() / 255d;
+        double g = (double) c.getGreen() / 255d;
+        double b = (double) c.getBlue() / 255d;
+
+        r = (r <= 0.03928) ? r / 12.92d : Math.pow(r + 0.055d / 1.055d, 2.4d);
+        g = (g <= 0.03928) ? g / 12.92d : Math.pow(g + 0.055d / 1.055d, 2.4d);
+        b = (b <= 0.03928) ? b / 12.92d : Math.pow(b + 0.055d / 1.055d, 2.4d);
+
+        return 0.2126d * r + 0.7152d * g + 0.0722d * b;
+    }
 }
