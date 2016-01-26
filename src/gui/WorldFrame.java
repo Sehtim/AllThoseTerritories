@@ -11,8 +11,6 @@ import javax.swing.border.MatteBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.text.DefaultCaret;
 import java.awt.*;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
@@ -199,7 +197,7 @@ public class WorldFrame extends JFrame implements World {
 
         infoPanel.add(scrollPane);
 
-        showTerritoryNames= new JCheckBox("Territorien anzeigen");
+        showTerritoryNames = new JCheckBox("Territorien anzeigen");
         showTerritoryNames.addItemListener(e -> gameBoard.repaint());
 //        infoPanel.add(showTerritoryNames);
 
@@ -241,7 +239,8 @@ public class WorldFrame extends JFrame implements World {
     }
 
     private void paintGameBoard(Graphics g) {
-        ((Graphics2D) g).setStroke(new BasicStroke(3, BasicStroke.JOIN_ROUND, BasicStroke.CAP_ROUND));
+        // Alles mit dicke 3 zeichnen
+        ((Graphics2D) g).setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
         // Verbindungen zeichnen
         g.setColor(Color.BLACK);
