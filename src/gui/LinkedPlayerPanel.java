@@ -81,7 +81,7 @@ public class LinkedPlayerPanel extends JPanel {
                 }
                 // Wenn letztes Panel: -1 übergeben, damit am Ende angefügt wird.
                 // Sonst am nächsten index einfügen
-                addPlayer("Neuer Spieler", PlayerType.SPIELER, getRandomColor(), ++i == components.length ? -1 : i);
+                addPlayer("Neuer Spieler", PlayerType.NORMAL, getRandomColor(), ++i == components.length ? -1 : i);
             });
 
             add(playerTypeBox);

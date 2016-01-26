@@ -305,10 +305,8 @@ public class WorldFrame extends JFrame implements World {
         FontMetrics metrics = g.getFontMetrics(drawFont);
 
         for (Territory territory : territories) {
-            g.setColor(getBestColorFor(colorMap.get(territory)));
+            g.setColor(getBestColorFor(colorMap.getOrDefault(territory, Color.GRAY)));
             Point cap = territory.getCapitalPosition();
-            Color b = players.get(territory.getPlayer()).getColor();
-
 
             String toDraw;
             if (showTerritoryNames) {
@@ -321,14 +319,26 @@ public class WorldFrame extends JFrame implements World {
         }
     }
 
-    private Color getBestColorFor(Color background) {
-        int ratioWhite = 0; // 1.05 / getRelativeLuminance + 0.05
-        int ratioBlack = 0; // getRelativeLuminance + 0.05 / 0.05
+    private static Color getBestColorFor(Color background) {
+        double ratioWhite = 1.05 / getRelativeLuminance(background) + 0.05;
+        double ratioBlack = getRelativeLuminance(background) + 0.05 / 0.05;
         if (ratioWhite > ratioBlack) {
             return Color.WHITE;
         } else {
             return Color.BLACK;
         }
+    }
+
+    private static double getRelativeLuminance(Color c) {
+        double r = (double) c.getRed() / 255d;
+        double g = (double) c.getGreen() / 255d;
+        double b = (double) c.getBlue() / 255d;
+
+        r = (r <= 0.03928) ? r / 12.92d : Math.pow(r + 0.055d / 1.055d, 2.4d);
+        g = (g <= 0.03928) ? g / 12.92d : Math.pow(g + 0.055d / 1.055d, 2.4d);
+        b = (b <= 0.03928) ? b / 12.92d : Math.pow(b + 0.055d / 1.055d, 2.4d);
+
+        return 0.2126d * r + 0.7152d * g + 0.0722d * b;
     }
 
     @Override
@@ -374,27 +384,30 @@ public class WorldFrame extends JFrame implements World {
             int[] attDices = new int[]{0, 0, 0};
             int[] defDices = new int[]{0, 0};
 
+            // Würfeln
             for (int i = 0; i < attackers; i++)
                 attDices[i] = (int) (Math.random() * 6) + 1;
             for (int i = 0; i < to.getArmyCount() && i < 2; i++)
                 defDices[i] = (int) (Math.random() * 6) + 1;
 
+            // Sortieren, damit man leichter vergleichen kann
             Arrays.sort(attDices);
             Arrays.sort(defDices);
 
+            // Verluste bestimmen
             if (attDices[2] > defDices[1])
                 to.decreaseArmyCount(1);
             else
                 from.decreaseArmyCount(1);
 
-            if (defDices[0] != 0 && attDices[1] != 0) // zweite Auswertung nur, wenn zwei Verteidiger und Angreifer
-            {
+            if (defDices[0] != 0 && attDices[1] != 0) { // zweite Auswertung nur, wenn zwei Verteidiger und Angreifer
                 if (attDices[1] > defDices[0])
                     to.decreaseArmyCount(1);
                 else
                     from.decreaseArmyCount(1);
             }
 
+            // Loggen wer was gewürfelt hat
             StringBuilder diceResult = new StringBuilder("Angreiferwurf: ");
             for (int i = attDices.length - 1; i >= 0; i--) {
                 if (attDices[i] != 0) {
@@ -409,8 +422,8 @@ public class WorldFrame extends JFrame implements World {
             }
             log(diceResult.toString());
 
-            if (to.getArmyCount() == 0) // übernehme Gebiet
-            {
+            // übernehme Gebiet
+            if (to.getArmyCount() == 0) {
                 to.setPlayer(activePlayer);
                 to.setArmyCount(attackers);
                 from.decreaseArmyCount(attackers);
@@ -556,17 +569,5 @@ public class WorldFrame extends JFrame implements World {
         } else {
             ai.movementTurn(activePlayer);
         }
-    }
-
-    private static double getRelativeLuminance(Color c) {
-        double r = (double) c.getRed() / 255d;
-        double g = (double) c.getGreen() / 255d;
-        double b = (double) c.getBlue() / 255d;
-
-        r = (r <= 0.03928) ? r / 12.92d : Math.pow(r + 0.055d / 1.055d, 2.4d);
-        g = (g <= 0.03928) ? g / 12.92d : Math.pow(g + 0.055d / 1.055d, 2.4d);
-        b = (b <= 0.03928) ? b / 12.92d : Math.pow(b + 0.055d / 1.055d, 2.4d);
-
-        return 0.2126d * r + 0.7152d * g + 0.0722d * b;
     }
 }
